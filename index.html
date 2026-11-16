@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive 3D Jumbo Bag Configurator</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      overflow: hidden;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    .ui-overlay {
+      position: absolute;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .interactive {
+      pointer-events: auto;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="select-none">
+
+  <!-- 3D Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- UI Overlay -->
+  <div class="ui-overlay inset-0 flex flex-col justify-between p-4 md:p-6 pointer-events-none">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-start pointer-events-auto">
+      <div class="bg-slate-900/80 backdrop-blur-md p-4 rounded-xl border border-slate-700 shadow-xl max-w-sm">
+        <h1 class="text-xl font-bold text-emerald-400 flex items-center gap-2">
+          <i class="fa-solid font-bold fa-box-archive"></i> Baffle Jumbo Bag 3D
+        </h1>
+      </div>
+
+      <!-- Controls Top Right -->
+      <div class="flex gap-2">
+        <!-- Mobile Toggle Panel Button -->
+        <button id="btn-mobile-toggle" class="md:hidden bg-slate-900/90 hover:bg-slate-800 text-slate-400 p-3 rounded-xl border border-slate-700 shadow-lg transition flex items-center justify-center text-sm" title="ซ่อน/แสดง เมนูตั้งค่า">
+          <i id="mobile-toggle-icon" class="fa-solid fa-sliders text-base"></i>
+        </button>
+        <button id="btn-reset" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 p-3 rounded-xl border border-slate-700 shadow-lg transition flex items-center gap-2 text-sm">
+          <i class="fa-solid fa-rotate-left"></i> <span class="hidden sm:inline">Reset View</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Configurator Panel -->
+    <div class="flex justify-end pointer-events-auto">
+      <!-- เพิ่ม class hidden บนมือถือ (hidden md:block) เพื่อซ่อน panel เป็นค่าเริ่มต้น -->
+      <div id="config-panel" class="hidden md:block bg-slate-900/85 backdrop-blur-md p-5 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md max-h-[75vh] md:max-h-[80vh] overflow-y-auto transition-all duration-300">
+        <h2 class="text-base font-semibold text-white mb-4 border-b border-slate-700 pb-2 flex items-center justify-between">
+          <span><i class="fa-solid fa-sliders text-emerald-400 mr-2"></i> พารามิเตอร์และพาเลทสี</span>
+          <button id="btn-toggle-panel" class="text-slate-400 hover:text-white p-1 rounded-lg transition" title="พับ/ขยาย เมนู">
+            <i id="toggle-icon" class="fa-solid fa-chevron-up"></i>
+          </button>
+        </h2>
+
+        <!-- Controls -->
+        <div id="panel-content" class="space-y-4 text-sm transition-all duration-300">
+          
+          <!-- Bulge Effect -->
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span class="font-semibold text-emerald-300"><i class="fa-solid fa-circle-dot mr-1"></i> แรงดันเบ่งถุง (Bulge Pressure)</span>
+              <span id="val-bulge" class="font-mono text-emerald-400 font-bold">120%</span>
+            </div>
+            <input id="input-bulge" type="range" min="0" max="120" value="120" class="w-full accent-emerald-500 cursor-pointer">
+          </div>
+
+          <!-- Bag Transparency -->
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span class="font-semibold text-emerald-300"><i class="fa-solid fa-eye mr-1"></i> ความโปร่งใสของผ้า (Opacity)</span>
+              <span id="val-opacity" class="font-mono text-emerald-400 font-bold">20%</span>
+            </div>
+            <input id="input-opacity" type="range" min="15" max="100" value="20" class="w-full accent-emerald-500 cursor-pointer">
+          </div>
+
+          <!-- Baffle Thickness -->
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span class="font-semibold text-emerald-300"><i class="fa-solid fa-layer-group mr-1"></i> ความหนาแผ่นกั้น (Baffle Thickness)</span>
+              <span id="val-baffle-thick" class="font-mono text-emerald-400 font-bold">2 mm</span>
+            </div>
+            <input id="input-baffle-thick" type="range" min="1" max="8" step="0.5" value="2" class="w-full accent-emerald-500 cursor-pointer">
+          </div>
+
+          <!-- Pellet Count Slider -->
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span class="font-semibold text-emerald-300"><i class="fa-solid fa-braille mr-1"></i> จำนวนเม็ดพลาสติก (Pellet Count)</span>
+              <span id="val-pellet-count" class="font-mono text-emerald-400 font-bold">22,000</span>
+            </div>
+            <input id="input-pellet-count" type="range" min="5000" max="150000" step="1000" value="22000" class="w-full accent-emerald-500 cursor-pointer">
+          </div>
+
+          <!-- Pellet Color Selector -->
+          <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/40">
+            <label class="block text-xs text-slate-300 mb-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-circles-radial text-emerald-400"></i> สีของเม็ดพลาสติกด้านใน (Pellet Color)
+            </label>
+            <div class="flex gap-3" id="pellet-color-selector">
+              <button data-color="0xf8fafc" title="สีขาวขุ่น (Standard Pure)" class="w-7 h-7 rounded-full bg-slate-100 ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 transition border border-slate-300 flex items-center justify-center text-slate-700 font-bold text-[10px]">W</button>
+              <button data-color="0x111827" title="สีดำ (HDPE Recycle)" class="w-7 h-7 rounded-full bg-slate-900 transition hover:scale-110 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-[10px]">B</button>
+            </div>
+          </div>
+
+          <!-- Bag Color Selector -->
+          <div>
+            <label class="block text-xs text-slate-300 mb-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-paint-roller text-emerald-400"></i> สีของตัวถุงจัมโบ้ (Bag Color)
+            </label>
+            <div class="flex gap-3" id="bag-color-selector">
+              <button data-color="0xfafafa" title="สีขาวผ้าดิบ" class="w-7 h-7 rounded-full bg-slate-100 ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 transition border border-slate-300"></button>
+              <button data-color="0xe2e8f0" title="สีเทาอ่อน" class="w-7 h-7 rounded-full bg-slate-300 transition hover:scale-110"></button>
+              <button data-color="0x3b82f6" title="สีน้ำเงินรีไซเคิล" class="w-7 h-7 rounded-full bg-blue-500 transition hover:scale-110"></button>
+              <button data-color="0xf57c00" title="สีส้มสเปกพิเศษ" class="w-7 h-7 rounded-full bg-orange-600 transition hover:scale-110"></button>
+              <button data-color="0x388e3c" title="สีเขียวคลังสินค้า" class="w-7 h-7 rounded-full bg-green-600 transition hover:scale-110"></button>
+            </div>
+          </div>
+
+          <!-- Loop Color Selector -->
+          <div>
+            <label class="block text-xs text-slate-300 mb-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-grip-lines text-emerald-400"></i> สีของหูหิ้ว (Loop Color)
+            </label>
+            <div class="flex gap-3" id="loop-color-selector">
+              <button data-color="0x388e3c" title="สีเขียวคลังสินค้า" class="w-7 h-7 rounded-full bg-green-600 ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 transition"></button>
+              <button data-color="0x1e88e5" title="สีน้ำเงินเข้ม" class="w-7 h-7 rounded-full bg-blue-600 transition hover:scale-110"></button>
+              <button data-color="0xf57c00" title="สีส้ม" class="w-7 h-7 rounded-full bg-orange-600 transition hover:scale-110"></button>
+              <button data-color="0xd32f2f" title="สีแดง" class="w-7 h-7 rounded-full bg-red-600 transition hover:scale-110"></button>
+              <button data-color="0xfafafa" title="สีขาว" class="w-7 h-7 rounded-full bg-slate-100 transition hover:scale-110 border border-slate-400"></button>
+            </div>
+          </div>
+
+          <!-- Top Spout Option -->
+          <div>
+            <label class="block text-xs text-slate-300 mb-2">ปากถุงด้านบน (Top Option)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button data-type="open" class="top-btn border border-emerald-500 bg-emerald-500/20 text-emerald-300 py-2 px-3 rounded-lg text-xs font-medium transition">
+                ปากเปิด (Open Top)
+              </button>
+              <button data-type="spout" class="top-btn border border-slate-700 bg-slate-800 text-slate-300 py-2 px-3 rounded-lg text-xs font-medium hover:border-slate-600 transition">
+                ท่อเติมสินค้า (Filling Spout)
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Spec Summary -->
+        <div class="mt-5 pt-3 border-t border-slate-700/80 text-xs text-slate-400 flex justify-between items-center">
+          <span>ขนาดถุงจำลองมาตรฐาน:</span>
+          <span class="text-white font-mono text-xs font-semibold">105 × 105 × 145 cm</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Implementation -->
+  <script>
+    /**
+     * ==========================================
+     * 1. THREE.JS JUMBO BAG CLASS (OOP)
+     * ==========================================
+     */
+    class JumboBag extends THREE.Group {
+      constructor(config = {}) {
+        super();
+
+        // Fixed Standard Dimensions (Normalized to Three.js units)
+        this.bagWidth = 1.05;   // 105 cm (X axis)
+        this.bagLength = 1.05;  // 105 cm (Z axis)
+        this.bagHeight = 1.45;  // 145 cm (Y axis)
+        this.cornerInset = 0.28; // ระยะแนวเย็บ Baffle เข้ามาจากขอบมุม (28 cm)
+
+        this.bulgeFactor = (config.bulge !== undefined ? config.bulge : 120) / 100;
+        this.baffleThickness = (config.baffleThickness !== undefined ? config.baffleThickness : 2) / 1000;
+        this.maxPelletCount = 150000;
+        this.pelletCount = config.pelletCount !== undefined ? config.pelletCount : 22000;
+        this.topType = config.topType || 'open';
+        this.bagColorHex = Number(config.bagColor || 0xfafafa);
+        this.loopColorHex = Number(config.loopColor || 0x388e3c);
+        this.pelletColorHex = Number(config.pelletColor || 0xf8fafc);
+        this.opacityVal = (config.opacity !== undefined ? config.opacity : 20) / 100;
+
+        // Cached random seed vectors for pellet packing consistency (up to 150,000)
+        this.pelletSeeds = [];
+        this.initPelletSeeds(this.maxPelletCount);
+
+        this.initMaterials();
+        this.rebuild();
+      }
+
+      initPelletSeeds(count) {
+        for (let i = 0; i < count; i++) {
+          // สุ่มพิกัด 3 มิติ (X, Y, Z) แบบอิสระ เพื่อให้เวลาปรับ count จากน้อยไปมาก เม็ดพลาสติกกระจายตัวหนาแน่นขึ้นทั่วทั้งใบถุงสม่ำเสมอ
+          this.pelletSeeds.push({
+            randX: (Math.random() - 0.5) * 2,
+            randY: Math.random(),
+            randZ: (Math.random() - 0.5) * 2,
+            jx: (Math.random() - 0.5) * 0.004,
+            jz: (Math.random() - 0.5) * 0.004,
+            rotX: Math.random() * Math.PI,
+            rotY: Math.random() * Math.PI,
+            rotZ: Math.random() * Math.PI,
+            scale: 0.85 + Math.random() * 0.35
+          });
+        }
+      }
+
+      initMaterials() {
+        this.fabricMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(this.bagColorHex),
+          roughness: 0.85, 
+          metalness: 0.01,
+          side: THREE.DoubleSide,
+          transparent: this.opacityVal < 1.0,
+          opacity: this.opacityVal,
+          depthWrite: this.opacityVal >= 1.0
+        });
+
+        this.baffleMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(0x10b981), 
+          roughness: 0.7,
+          metalness: 0.02,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.80 
+        });
+
+        this.spoutMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(this.bagColorHex),
+          roughness: 0.8,
+          metalness: 0.0,
+          side: THREE.DoubleSide,
+          transparent: this.opacityVal < 1.0,
+          opacity: this.opacityVal,
+          depthWrite: this.opacityVal >= 1.0
+        });
+
+        this.loopMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(this.loopColorHex),
+          roughness: 0.5,
+          metalness: 0.1,
+          side: THREE.DoubleSide
+        });
+
+        this.pelletMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(this.pelletColorHex),
+          roughness: 0.45,
+          metalness: 0.02
+        });
+
+        this.stitchMaterial = new THREE.LineBasicMaterial({
+          color: 0xf97316,
+          linewidth: 2
+        });
+      }
+
+      rebuild() {
+        while (this.children.length > 0) {
+          const obj = this.children[0];
+          if (obj.geometry) obj.geometry.dispose();
+          this.remove(obj);
+        }
+
+        this.createChubbyBody();
+        this.makeBaffle();
+        this.createStitchLines(); 
+        this.createTopStructure();
+        this.createCornerLoopsSymmetric();
+        this.createPelletFill();
+      }
+
+      makeBaffle() {
+        const baffleGroup = new THREE.Group();
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+        const h = this.bagHeight;
+        const inset = this.cornerInset;
+
+        const baffleHeight = h * 0.84;
+        const baffleWidth = Math.sqrt(inset * inset + inset * inset);
+
+        const shape = new THREE.Shape();
+        shape.moveTo(-baffleWidth / 2, -baffleHeight / 2);
+        shape.lineTo(baffleWidth / 2, -baffleHeight / 2);
+        shape.lineTo(baffleWidth / 2, baffleHeight / 2);
+        shape.lineTo(-baffleWidth / 2, baffleHeight / 2);
+        shape.closePath();
+
+        const numHoles = 5;
+        const holeRadius = baffleWidth * 0.18;
+        const spacing = baffleHeight / (numHoles + 1);
+
+        for (let i = 1; i <= numHoles; i++) {
+          const holeY = -baffleHeight / 2 + i * spacing;
+          const holePath = new THREE.Path();
+          holePath.absarc(0, holeY, holeRadius, 0, Math.PI * 2, false);
+          shape.holes.push(holePath);
+        }
+
+        // ใช้ ExtrudeGeometry เพิ่มความหนาให้แผ่น Baffle เพื่อให้มองเห็นสันขอบชัดเจนเมื่อดูจากมุมบน
+        const extrudeSettings = {
+          depth: this.baffleThickness,
+          bevelEnabled: false,
+          curveSegments: 24
+        };
+        const baffleGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        // จัดกึ่งกลางความหนาให้อยู่ตรงแนวเย็บพอดี
+        baffleGeo.translate(0, 0, -extrudeSettings.depth / 2);
+
+        // Position and rotate each baffle diagonally so its edges stitch directly onto adjacent side walls
+        const corners = [
+          // Front-Right (+X, +Z): connects (halfW, halfL - inset) to (halfW - inset, halfL)
+          { x: halfW - inset / 2,  z: halfL - inset / 2,  rotY: Math.PI / 4 },
+          // Front-Left (-X, +Z): connects (-halfW, halfL - inset) to (-halfW + inset, halfL)
+          { x: -halfW + inset / 2, z: halfL - inset / 2,  rotY: -Math.PI / 4 },
+          // Back-Left (-X, -Z): connects (-halfW, -halfL + inset) to (-halfW + inset, -halfL)
+          { x: -halfW + inset / 2, z: -halfL + inset / 2, rotY: Math.PI / 4 },
+          // Back-Right (+X, -Z): connects (halfW, -halfL + inset) to (halfW - inset, -halfL)
+          { x: halfW - inset / 2,  z: -halfL + inset / 2, rotY: -Math.PI / 4 }
+        ];
+
+        corners.forEach(c => {
+          const mesh = new THREE.Mesh(baffleGeo, this.baffleMaterial);
+          // ขยับตำแหน่ง Y ขึ้นเล็กน้อยให้ขอบบนของ Baffle เชื่อมรับกับระดับปากถุงพอดี
+          mesh.position.set(c.x, h - baffleHeight / 2 - 0.02, c.z);
+          mesh.rotation.y = c.rotY;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          baffleGroup.add(mesh);
+        });
+
+        this.add(baffleGroup);
+      }
+
+      createStitchLines() {
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+        const h = this.bagHeight;
+        const seamX = halfW - this.cornerInset;
+        const seamZ = halfL - this.cornerInset;
+
+        const stitchSegments = 60;
+        const stitchOffset = 0.003; 
+
+        const tracks = [
+          { xStart: seamX, zStart: halfL + stitchOffset },
+          { xStart: -seamX, zStart: halfL + stitchOffset },
+          { xStart: seamX, zStart: -halfL - stitchOffset },
+          { xStart: -seamX, zStart: -halfL - stitchOffset },
+          { xStart: halfW + stitchOffset, zStart: seamZ },
+          { xStart: halfW + stitchOffset, zStart: -seamZ },
+          { xStart: -halfW - stitchOffset, zStart: seamZ },
+          { xStart: -halfW - stitchOffset, zStart: -seamZ }
+        ];
+
+        const stitchPoints = [];
+
+        tracks.forEach(track => {
+          for (let s = 0; s < stitchSegments; s++) {
+            const y1 = (s / stitchSegments) * h;
+            const y2 = ((s + 0.6) / stitchSegments) * h; 
+
+            const pos1 = this.getDistortedPosition(track.xStart, y1, track.zStart);
+            const pos2 = this.getDistortedPosition(track.xStart, y2, track.zStart);
+
+            const ext = 0.002;
+            const ox1 = track.xStart === halfW + stitchOffset ? ext : (track.xStart === -halfW - stitchOffset ? -ext : 0);
+            const oz1 = track.zStart === halfL + stitchOffset ? ext : (track.zStart === -halfL - stitchOffset ? -ext : 0);
+
+            stitchPoints.push(new THREE.Vector3(pos1.x + ox1, pos1.y, pos1.z + oz1));
+            stitchPoints.push(new THREE.Vector3(pos2.x + ox1, pos2.y, pos2.z + oz1));
+          }
+        });
+
+        const stitchGeo = new THREE.BufferGeometry().setFromPoints(stitchPoints);
+        const stitchLines = new THREE.LineSegments(stitchGeo, this.stitchMaterial);
+        this.add(stitchLines);
+      }
+
+      wallMidProfile(t) {
+        return 1.5 * Math.cos(t * Math.PI / 2) - 0.5;
+      }
+
+      cornerProfile(tau) {
+        return -0.5 + 1.8 * Math.sin(tau * Math.PI / 2);
+      }
+
+      cornerTau(absCoord, halfDim, seamPos, R) {
+        const flatEnd = halfDim - R;
+        const flatLen = Math.max(1e-4, flatEnd - seamPos);
+        const arcLen  = Math.max(1e-4, R * Math.PI / 4);
+        const total   = flatLen + arcLen;
+        if (absCoord <= flatEnd) return Math.max(0, (absCoord - seamPos) / total);
+        const t = Math.min(1, (absCoord - flatEnd) / R);
+        return Math.min(1, (flatLen + t * arcLen) / total);
+      }
+
+      getDistortedPosition(x, y, z) {
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+        const h = this.bagHeight;
+        const seamX = halfW - this.cornerInset;
+        const seamZ = halfL - this.cornerInset;
+
+        const yNorm = Math.max(0, Math.min(1, y / h));
+        const verticalProfile = Math.pow(Math.max(0, Math.sin(yNorm * Math.PI)), 0.70);
+        const maxEmbossDepth = 0.042 * this.bulgeFactor * verticalProfile;
+
+        const R = Math.min(0.22, this.cornerInset * 0.75)
+                * (0.40 + 0.60 * this.bulgeFactor)
+                * (0.55 + 0.45 * verticalProfile);
+
+        const absX = Math.abs(x), absZ = Math.abs(z);
+        const sx = x < 0 ? -1 : 1, sz = z < 0 ? -1 : 1;
+        
+        const onXFace = absX > halfW - 1e-3;
+        const onZFace = absZ > halfL - 1e-3;
+
+        let outX = x, outZ = z, dispX = 0, dispZ = 0;
+
+        if (absX > halfW - R && absZ > halfL - R) {
+          const localX = absX - (halfW - R);
+          const localZ = absZ - (halfL - R);
+          const phi = Math.atan2(localZ, localX);
+          
+          outX = sx * (halfW - R + R * Math.cos(phi));
+          outZ = sz * (halfL - R + R * Math.sin(phi));
+          
+          const avgCoord = absX > absZ ? absZ : absX;
+          const avgHalf = absX > absZ ? halfL : halfW;
+          const avgSeam = absX > absZ ? seamZ : seamX;
+          
+          const amp = this.cornerProfile(this.cornerTau(avgCoord, avgHalf, avgSeam, R)) * maxEmbossDepth;
+          dispX = sx * Math.cos(phi) * amp;
+          dispZ = sz * Math.sin(phi) * amp;
+        } 
+        else if (onXFace) {
+          dispX = sx * (absZ <= seamZ
+            ? this.wallMidProfile(absZ / seamZ)
+            : this.cornerProfile(this.cornerTau(absZ, halfL, seamZ, R))) * maxEmbossDepth;
+        } 
+        else if (onZFace) {
+          dispZ = sz * (absX <= seamX
+            ? this.wallMidProfile(absX / seamX)
+            : this.cornerProfile(this.cornerTau(absX, halfW, seamX, R))) * maxEmbossDepth;
+        }
+
+        const wrinkleFrequency = y * Math.PI * 45;
+        const wrinkleAmplitude = 0.0016 * Math.sin(wrinkleFrequency) * verticalProfile;
+        
+        return { 
+          x: outX + dispX + ((onXFace || absX > halfW - R) ? sx * wrinkleAmplitude : 0), 
+          y: y, 
+          z: outZ + dispZ + ((onZFace || absZ > halfL - R) ? sz * wrinkleAmplitude : 0)
+        };
+      }
+
+      createPelletFill() {
+        const radius = 0.0035;
+        const height = 0.004;
+        // ใช้ 5 เหลี่ยมเพื่อลดภาระ GPU เมื่อแสดงผลสูงสุด 150,000 เม็ด
+        const pelletGeo = new THREE.CylinderGeometry(radius, radius, height, 5);
+
+        const maxCount = this.maxPelletCount;
+        this.pelletInstancedMesh = new THREE.InstancedMesh(pelletGeo, this.pelletMaterial, maxCount);
+        // ปิดการคำนวณเงาของเม็ดพลาสติกเพื่อความลื่นไหลสูงสุดระดับ 60 FPS
+        this.pelletInstancedMesh.castShadow = false;
+        this.pelletInstancedMesh.receiveShadow = false;
+
+        const dummy = new THREE.Object3D();
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+        const fillHeight = this.bagHeight * 0.90;
+        const innerScale = 0.97;
+
+        for (let i = 0; i < maxCount; i++) {
+          const seed = this.pelletSeeds[i];
+          const yNorm = seed.randY;
+          const baseY = 0.04 + yNorm * fillHeight;
+
+          const rawX = seed.randX * halfW;
+          const rawZ = seed.randZ * halfL;
+
+          // สร้างความนูนแบบกองธรรมชาติเล็กน้อยบริเวณชั้นบนสุด โดยยังคลุมเต็มพื้นที่ปากถุงและมุม Baffle
+          const radialNorm = Math.min(1, Math.sqrt(seed.randX * seed.randX + seed.randZ * seed.randZ) / Math.SQRT2);
+          const crownOffset = yNorm > 0.85 
+            ? ((yNorm - 0.85) / 0.15) * (0.045 * (1 - radialNorm * 0.85)) 
+            : 0;
+
+          const y = baseY + crownOffset;
+
+          // คำนวณขอบเขตจริงของผนังถุงที่พองตัวในทิศทาง (rawX, rawZ) เพื่อดันเม็ดพลาสติกให้อัดแน่นถึงซอกมุมทั้ง 4 ด้าน
+          const maxAbs = Math.max(Math.abs(rawX) / halfW, Math.abs(rawZ) / halfL);
+          let finalX = rawX;
+          let finalZ = rawZ;
+
+          if (maxAbs > 1e-5) {
+            const boundaryX = (rawX / maxAbs);
+            const boundaryZ = (rawZ / maxAbs);
+            const wallPos = this.getDistortedPosition(boundaryX, y, boundaryZ);
+
+            finalX = wallPos.x * maxAbs * innerScale;
+            finalZ = wallPos.z * maxAbs * innerScale;
+          }
+
+          dummy.position.set(finalX, y + seed.jx, finalZ + seed.jz);
+          dummy.rotation.set(seed.rotX, seed.rotY, seed.rotZ);
+          dummy.scale.set(seed.scale, seed.scale, seed.scale);
+          dummy.updateMatrix();
+
+          this.pelletInstancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+
+        this.pelletInstancedMesh.instanceMatrix.needsUpdate = true;
+        // กำหนดจำนวนเม็ดที่แสดงผลจริงตามสไลเดอร์โดยไม่ต้องสร้าง Mesh ใหม่
+        this.pelletInstancedMesh.count = this.pelletCount;
+        this.add(this.pelletInstancedMesh);
+      }
+
+      createChubbyBody() {
+        const segX = 64;
+        const segY = 48;
+        const segZ = 64;
+
+        let geo = new THREE.BoxGeometry(
+          this.bagWidth,
+          this.bagHeight,
+          this.bagLength,
+          segX,
+          segY,
+          segZ
+        );
+
+        geo.translate(0, this.bagHeight / 2, 0);
+
+        const posAttr = geo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+          const vx = posAttr.getX(i);
+          const vy = posAttr.getY(i);
+          const vz = posAttr.getZ(i);
+
+          const distorted = this.getDistortedPosition(vx, vy, vz);
+          posAttr.setXYZ(i, distorted.x, distorted.y, distorted.z);
+        }
+
+        geo.computeVertexNormals();
+
+        const bodyMesh = new THREE.Mesh(geo, this.fabricMaterial);
+        bodyMesh.castShadow = true;
+        bodyMesh.receiveShadow = true;
+        this.add(bodyMesh);
+      }
+
+      createTopStructure() {
+        const h = this.bagHeight;
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+
+        const innerVoidMaterial = new THREE.MeshBasicMaterial({
+          color: 0x090d16,
+          side: THREE.DoubleSide
+        });
+
+        if (this.topType === 'spout') {
+          const spoutRadius = Math.min(this.bagWidth, this.bagLength) * 0.22;
+          const spoutHeight = 0.35;
+
+          const spoutGeo = new THREE.CylinderGeometry(spoutRadius, spoutRadius, spoutHeight, 32, 10, true);
+          spoutGeo.translate(0, h + spoutHeight / 2, 0);
+
+          const spoutMesh = new THREE.Mesh(spoutGeo, this.spoutMaterial);
+          spoutMesh.castShadow = true;
+          this.add(spoutMesh);
+
+          const holeGeo = new THREE.CircleGeometry(spoutRadius * 0.96, 32);
+          holeGeo.rotateX(-Math.PI / 2);
+          holeGeo.translate(0, h + 0.005, 0);
+          const holeMesh = new THREE.Mesh(holeGeo, innerVoidMaterial);
+          this.add(holeMesh);
+
+          const tieGeo = new THREE.TorusGeometry(spoutRadius + 0.01, 0.008, 12, 32);
+          tieGeo.rotateX(Math.PI / 2);
+          tieGeo.translate(0, h + spoutHeight * 0.5, 0);
+          const tieMesh = new THREE.Mesh(tieGeo, new THREE.MeshStandardMaterial({ color: 0x334155 }));
+          this.add(tieMesh);
+        } else {
+          const holeRadius = Math.min(halfW, halfL) * 0.65;
+          const rimRadius = Math.min(halfW, halfL) * 0.95;
+
+          const duffelGeo = new THREE.RingGeometry(holeRadius, rimRadius, 32, 8);
+          duffelGeo.rotateX(-Math.PI / 2);
+          duffelGeo.translate(0, h + 0.01, 0);
+
+          const duffelMesh = new THREE.Mesh(duffelGeo, this.spoutMaterial);
+          duffelMesh.castShadow = true;
+          this.add(duffelMesh);
+
+          const innerHoleGeo = new THREE.CircleGeometry(holeRadius * 0.99, 32);
+          innerHoleGeo.rotateX(-Math.PI / 2);
+          innerHoleGeo.translate(0, h + 0.005, 0);
+          const innerHoleMesh = new THREE.Mesh(innerHoleGeo, innerVoidMaterial);
+          this.add(innerHoleMesh);
+        }
+      }
+
+      createCornerLoopsSymmetric() {
+        const loopGroup = new THREE.Group();
+        const masterLoop = this.buildSingleMasterLoop();
+        const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+        angles.forEach(angle => {
+          const cornerInstance = masterLoop.clone();
+          cornerInstance.rotation.y = angle;
+          loopGroup.add(cornerInstance);
+        });
+
+        this.add(loopGroup);
+      }
+
+      buildSingleMasterLoop() {
+        const masterGroup = new THREE.Group();
+
+        const halfW = this.bagWidth / 2;
+        const halfL = this.bagLength / 2;
+        const h = this.bagHeight;
+        const strapWidth = 0.06;
+        const strapLength = 0.45;
+
+        const legAGeo = new THREE.PlaneGeometry(strapWidth, strapLength, 8, 24);
+        legAGeo.translate(0, -strapLength / 2, 0);
+
+        const posA = legAGeo.attributes.position;
+        for (let i = 0; i < posA.count; i++) {
+          const lx = posA.getX(i) + (halfW - 0.12);
+          const ly = posA.getY(i) + h;
+          const lz = halfL;
+
+          const surfacePos = this.getDistortedPosition(lx, ly, lz);
+          posA.setXYZ(i, surfacePos.x, surfacePos.y, surfacePos.z + 0.005);
+        }
+        legAGeo.computeVertexNormals();
+        const legAMesh = new THREE.Mesh(legAGeo, this.loopMaterial);
+        legAMesh.castShadow = true;
+        masterGroup.add(legAMesh);
+
+        const legBGeo = new THREE.PlaneGeometry(strapWidth, strapLength, 8, 24);
+        legBGeo.translate(0, -strapLength / 2, 0);
+
+        const posB = legBGeo.attributes.position;
+        for (let i = 0; i < posB.count; i++) {
+          const lx = halfW;
+          const ly = posB.getY(i) + h;
+          const lz = posB.getX(i) + (halfL - 0.12);
+
+          const surfacePos = this.getDistortedPosition(lx, ly, lz);
+          posB.setXYZ(i, surfacePos.x + 0.005, surfacePos.y, surfacePos.z);
+        }
+        legBGeo.computeVertexNormals();
+        const legBMesh = new THREE.Mesh(legBGeo, this.loopMaterial);
+        legBMesh.castShadow = true;
+        masterGroup.add(legBMesh);
+
+        const anchorA = this.getDistortedPosition(halfW - 0.12, h, halfL);
+        const anchorB = this.getDistortedPosition(halfW, h, halfL - 0.12);
+
+        const pA = new THREE.Vector3(anchorA.x, anchorA.y, anchorA.z + 0.005);
+        const pB = new THREE.Vector3(anchorB.x + 0.005, anchorB.y, anchorB.z);
+        const topApex = new THREE.Vector3(
+          (pA.x + pB.x) / 2 + 0.03,
+          h + 0.32,
+          (pA.z + pB.z) / 2 + 0.03
+        );
+
+        const curve = new THREE.CatmullRomCurve3([
+          pA,
+          new THREE.Vector3(pA.x, h + 0.18, pA.z),
+          topApex,
+          new THREE.Vector3(pB.x, h + 0.18, pB.z),
+          pB
+        ]);
+
+        const tubularSegments = 36;
+        const radialSegments = 12;
+        const archGeo = new THREE.TubeGeometry(curve, tubularSegments, strapWidth / 2, radialSegments, false);
+
+        const archPos = archGeo.attributes.position;
+        const ringVertexCount = radialSegments + 1;
+        for (let i = 0; i <= tubularSegments; i++) {
+          const t = i / tubularSegments;
+          const center = curve.getPointAt(t);
+
+          const pinchStart = Math.pow(Math.max(0, 1 - t * 3.5), 2);
+          const pinchEnd = Math.pow(Math.max(0, (t - (1 - 1 / 3.5)) * 3.5), 2);
+
+          const scaleZ = 1 - 0.94 * pinchStart;
+          const scaleX = 1 - 0.94 * pinchEnd;
+
+          for (let j = 0; j < ringVertexCount; j++) {
+            const idx = i * ringVertexCount + j;
+            const ox = archPos.getX(idx) - center.x;
+            const oy = archPos.getY(idx) - center.y;
+            const oz = archPos.getZ(idx) - center.z;
+
+            archPos.setXYZ(
+              idx,
+              center.x + ox * scaleX,
+              center.y + oy,
+              center.z + oz * scaleZ
+            );
+          }
+        }
+        archGeo.computeVertexNormals();
+
+        const archMesh = new THREE.Mesh(archGeo, this.loopMaterial);
+        archMesh.castShadow = true;
+        masterGroup.add(archMesh);
+
+        return masterGroup;
+      }
+
+      setBagColor(colorHex) {
+        this.bagColorHex = Number(colorHex);
+        this.fabricMaterial.color.setHex(this.bagColorHex);
+        this.spoutMaterial.color.setHex(this.bagColorHex);
+      }
+
+      setLoopColor(colorHex) {
+        this.loopColorHex = Number(colorHex);
+        this.loopMaterial.color.setHex(this.loopColorHex);
+      }
+
+      setPelletColor(colorHex) {
+        this.pelletColorHex = Number(colorHex);
+        this.pelletMaterial.color.setHex(this.pelletColorHex);
+      }
+
+      setBulge(val) {
+        this.bulgeFactor = val / 100;
+        this.rebuild();
+      }
+
+      setBaffleThickness(mm) {
+        this.baffleThickness = mm / 1000;
+        this.rebuild();
+      }
+
+      setPelletCount(count) {
+        this.pelletCount = Math.min(this.maxPelletCount, Math.max(0, count));
+        if (this.pelletInstancedMesh) {
+          this.pelletInstancedMesh.count = this.pelletCount;
+        }
+      }
+
+      setOpacity(val) {
+        this.opacityVal = val / 100;
+        const isTransparent = this.opacityVal < 1.0;
+
+        this.fabricMaterial.transparent = isTransparent;
+        this.fabricMaterial.opacity = this.opacityVal;
+        this.fabricMaterial.depthWrite = !isTransparent;
+        this.fabricMaterial.needsUpdate = true;
+
+        this.spoutMaterial.transparent = isTransparent;
+        this.spoutMaterial.opacity = this.opacityVal;
+        this.spoutMaterial.depthWrite = !isTransparent;
+        this.spoutMaterial.needsUpdate = true;
+      }
+
+      setTopType(type) {
+        this.topType = type;
+        this.rebuild();
+      }
+    }
+
+    /**
+     * ==========================================
+     * 2. THREE.JS SCENE MANAGER CLASS
+     * ==========================================
+     */
+    class SceneManager {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x0f172a);
+
+        this.camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          100
+        );
+        this.camera.position.set(2.8, 2.2, 3.2);
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.container.appendChild(this.renderer.domElement);
+
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.maxPolarAngle = Math.PI / 2 + 0.05;
+        this.controls.minDistance = 1.2;
+        this.controls.maxDistance = 7.0;
+        this.controls.target.set(0, 0.75, 0);
+
+        this.initLights();
+        this.initEnvironment();
+        this.initListeners();
+
+        this.animate = this.animate.bind(this);
+        this.animate();
+      }
+
+      initLights() {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        this.scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        mainLight.position.set(4, 7, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.bias = -0.0003;
+        this.scene.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0x90b0ff, 0.4);
+        fillLight.position.set(-4, 3, -4);
+        this.scene.add(fillLight);
+      }
+
+      initEnvironment() {
+        const gridHelper = new THREE.GridHelper(10, 20, 0x334155, 0x1e293b);
+        gridHelper.position.y = -0.001;
+        this.scene.add(gridHelper);
+
+        const floorGeo = new THREE.PlaneGeometry(20, 20);
+        const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        this.scene.add(floor);
+      }
+
+      initListeners() {
+        window.addEventListener('resize', () => {
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+
+      animate() {
+        requestAnimationFrame(this.animate);
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      resetCamera() {
+        this.camera.position.set(2.8, 2.2, 3.2);
+        this.controls.target.set(0, 0.75, 0);
+        this.controls.update();
+      }
+    }
+
+    /**
+     * ==========================================
+     * 3. UI CONTROLLER & APP INITIALIZATION
+     * ==========================================
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      const app = new SceneManager('canvas-container');
+
+      let bulgeVal = 120; 
+      let opacityVal = 20; 
+      let baffleThickVal = 2;
+      let pelletCountVal = 22000;
+      let currentTopType = 'open';
+      
+      let currentBagColor = 0xfafafa; 
+      let currentLoopColor = 0x388e3c; 
+      let currentPelletColor = 0xf8fafc;
+
+      const bag = new JumboBag({
+        bulge: bulgeVal,
+        baffleThickness: baffleThickVal,
+        pelletCount: pelletCountVal,
+        opacity: opacityVal,
+        topType: currentTopType,
+        bagColor: currentBagColor,
+        loopColor: currentLoopColor,
+        pelletColor: currentPelletColor
+      });
+
+      bag.position.y = 0.015;
+      app.scene.add(bag);
+
+      const inputBulge = document.getElementById('input-bulge');
+      const inputOpacity = document.getElementById('input-opacity');
+      const inputBaffleThick = document.getElementById('input-baffle-thick');
+      const inputPelletCount = document.getElementById('input-pellet-count');
+      const valBulge = document.getElementById('val-bulge');
+      const valOpacity = document.getElementById('val-opacity');
+      const valBaffleThick = document.getElementById('val-baffle-thick');
+      const valPelletCount = document.getElementById('val-pellet-count');
+
+      inputBulge.addEventListener('input', (e) => {
+        bulgeVal = parseInt(e.target.value);
+        valBulge.innerText = `${bulgeVal}%`;
+        bag.setBulge(bulgeVal);
+      });
+
+      inputOpacity.addEventListener('input', (e) => {
+        opacityVal = parseInt(e.target.value);
+        valOpacity.innerText = `${opacityVal}%`;
+        bag.setOpacity(opacityVal);
+      });
+
+      inputBaffleThick.addEventListener('input', (e) => {
+        baffleThickVal = parseFloat(e.target.value);
+        valBaffleThick.innerText = `${baffleThickVal} mm`;
+        bag.setBaffleThickness(baffleThickVal);
+      });
+
+      inputPelletCount.addEventListener('input', (e) => {
+        pelletCountVal = parseInt(e.target.value);
+        valPelletCount.innerText = pelletCountVal.toLocaleString();
+        bag.setPelletCount(pelletCountVal);
+      });
+
+      function clearActiveRing(selectorId) {
+        const btns = document.querySelectorAll(`#${selectorId} button`);
+        btns.forEach(b => b.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-slate-900'));
+      }
+
+      function setActiveColorButton(selectorId, colorHexStr) {
+        clearActiveRing(selectorId);
+        const btn = document.querySelector(`#${selectorId} button[data-color="${colorHexStr}"]`);
+        if (btn) {
+          btn.classList.add('ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-slate-900');
+        }
+      }
+
+      const pelletColorBtns = document.querySelectorAll('#pellet-color-selector button');
+      pelletColorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const colorStr = btn.getAttribute('data-color');
+          currentPelletColor = Number(colorStr);
+          bag.setPelletColor(currentPelletColor);
+          setActiveColorButton('pellet-color-selector', colorStr);
+        });
+      });
+
+      const bagColorBtns = document.querySelectorAll('#bag-color-selector button');
+      bagColorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const selectedColorStr = btn.getAttribute('data-color');
+          let selectedBagColor = Number(selectedColorStr);
+          
+          if (selectedBagColor === currentLoopColor) {
+            const alternativeLoopBtn = document.querySelector(`#loop-color-selector button:not([data-color="${selectedColorStr}"])`);
+            if (alternativeLoopBtn) {
+              const altStr = alternativeLoopBtn.getAttribute('data-color');
+              currentLoopColor = Number(altStr);
+              bag.setLoopColor(currentLoopColor);
+              setActiveColorButton('loop-color-selector', altStr);
+            }
+          }
+          
+          currentBagColor = selectedBagColor;
+          bag.setBagColor(currentBagColor);
+          setActiveColorButton('bag-color-selector', selectedColorStr);
+        });
+      });
+
+      const loopColorBtns = document.querySelectorAll('#loop-color-selector button');
+      loopColorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const selectedColorStr = btn.getAttribute('data-color');
+          let selectedLoopColor = Number(selectedColorStr);
+          
+          if (selectedLoopColor === currentBagColor) {
+            const alternativeBagBtn = document.querySelector(`#bag-color-selector button:not([data-color="${selectedColorStr}"])`);
+            if (alternativeBagBtn) {
+              const altStr = alternativeBagBtn.getAttribute('data-color');
+              currentBagColor = Number(altStr);
+              bag.setBagColor(currentBagColor);
+              setActiveColorButton('bag-color-selector', altStr);
+            }
+          }
+          
+          currentLoopColor = selectedLoopColor;
+          bag.setLoopColor(currentLoopColor);
+          setActiveColorButton('loop-color-selector', selectedColorStr);
+        });
+      });
+
+      const topBtns = document.querySelectorAll('.top-btn');
+      topBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          topBtns.forEach(b => {
+            b.classList.remove('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300');
+            b.classList.add('border-slate-700', 'bg-slate-800', 'text-slate-300');
+          });
+          btn.classList.remove('border-slate-700', 'bg-slate-800', 'text-slate-300');
+          btn.classList.add('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300');
+
+          currentTopType = btn.getAttribute('data-type');
+          bag.setTopType(currentTopType);
+        });
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        app.resetCamera();
+      });
+
+      const toggleBtn = document.getElementById('btn-toggle-panel');
+      const mobileToggleBtn = document.getElementById('btn-mobile-toggle');
+      const configPanel = document.getElementById('config-panel');
+      const panelContent = document.getElementById('panel-content');
+      const toggleIcon = document.getElementById('toggle-icon');
+      let isCollapsed = false;
+
+      // ฟังก์ชันพับ/ขยายเนื้อหาใน Panel (Desktop)
+      const handleToggle = () => {
+        isCollapsed = !isCollapsed;
+        if (isCollapsed) {
+          panelContent.classList.add('hidden');
+          toggleIcon.classList.remove('fa-chevron-up');
+          toggleIcon.classList.add('fa-chevron-down');
+        } else {
+          panelContent.classList.remove('hidden');
+          toggleIcon.classList.remove('fa-chevron-down');
+          toggleIcon.classList.add('fa-chevron-up');
+        }
+      };
+
+      toggleBtn.addEventListener('click', handleToggle);
+
+      // สำหรับหน้าจอขนาดเล็ก (Mobile): เริ่มต้นซ่อน Panel ไว้ตามที่ตั้งค่าใน HTML (hidden md:block)
+      let isMobileHidden = true;
+      mobileToggleBtn.addEventListener('click', () => {
+        isMobileHidden = !isMobileHidden;
+        if (isMobileHidden) {
+          configPanel.classList.add('hidden');
+          mobileToggleBtn.classList.remove('text-emerald-400', 'bg-slate-800/90');
+          mobileToggleBtn.classList.add('text-slate-400', 'bg-slate-900/90');
+        } else {
+          configPanel.classList.remove('hidden');
+          mobileToggleBtn.classList.remove('text-slate-400', 'bg-slate-900/90');
+          mobileToggleBtn.classList.add('text-emerald-400', 'bg-slate-800/90');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
